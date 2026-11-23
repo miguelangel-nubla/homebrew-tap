@@ -26,3 +26,18 @@ sudo rm -rf "$(brew --prefix)/Cellar/ipv6ddns"
 ```
 
 See its [documentation](https://github.com/miguelangel-nubla/ipv6ddns/blob/main/docs/README.md).
+
+## ipv6disc
+
+[ipv6disc](https://github.com/miguelangel-nubla/ipv6disc): finds the hosts on the local network and their addresses, each with its MAC, over IPv6 and IPv4. It is the discovery of ipv6ddns, as a command of its own.
+
+```bash
+brew install miguelangel-nubla/tap/ipv6disc
+sudo ipv6disc --live
+```
+
+It is built from source, with Go. See its [documentation](https://github.com/miguelangel-nubla/ipv6disc/blob/main/README.md).
+
+## A release
+
+`./update.sh <name> <tag>` makes a formula of a version: its source, and that source's checksum. The release of each project runs it.

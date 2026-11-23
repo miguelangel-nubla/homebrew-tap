@@ -1,8 +1,8 @@
 class Ipv6ddns < Formula
   desc "DNS names for every device on your network, wherever its addresses move"
   homepage "https://github.com/miguelangel-nubla/ipv6ddns"
-  url "https://github.com/miguelangel-nubla/ipv6ddns/archive/refs/tags/v0.25.0.tar.gz"
-  sha256 "ed7454354935f414442c576b8f2d5aa7b7b01a10c2e6ae8bb55570c2423ba051"
+  url "https://github.com/miguelangel-nubla/ipv6ddns/archive/refs/tags/v0.25.1.tar.gz"
+  sha256 "22c0eb0e6c55e906b637a413cdbfce5f0a487a3e5aefc25fce4adaddeaf6eb83"
   license "Apache-2.0"
   head "https://github.com/miguelangel-nubla/ipv6ddns.git", branch: "main"
 
