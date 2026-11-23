@@ -1,28 +1,56 @@
 name: update
 
-# Each formula follows the latest release of its project: every hour, a formula behind it is made
+# Each formula follows the latest release of its project: every day, a formula behind it is made
 # of that release, installed and tested on macOS, and only then kept. Nothing but this
 # repository is written to, so the workflow's own token is all it needs.
 #
-# By hand, it also installs and tests the formulae as they are.
+# By hand, it does so at once, and installs and tests every formula, as it is when none is behind.
 
 on:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '17 5 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: update
   cancel-in-progress: false
 
 jobs:
-  update:
-    runs-on: macos-latest
+  # Whether a formula is behind, which is all a day without a release asks: not on macOS, whose
+  # runners are the ones to wait for.
+  behind:
+    runs-on: ubuntu-latest
+    outputs:
+      formulae: ${{ steps.behind.outputs.formulae }}
     env:
       GH_TOKEN: ${{ github.token }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      -
+        name: Formulae behind their latest release
+        id: behind
+        run: |
+          ./latest.sh
+          formulae=$(git diff --name-only -- Formula | sed 's|Formula/||; s|\.rb$||' | tr '\n' ' ')
+          echo "formulae=$formulae" >>"$GITHUB_OUTPUT"
+          echo "behind: ${formulae:-none}"
+
+  update:
+    needs: behind
+    if: needs.behind.outputs.formulae != '' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BEHIND: ${{ needs.behind.outputs.formulae }}
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
       HOMEBREW_NO_ANALYTICS: 1
@@ -31,44 +59,31 @@ jobs:
         name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
-        # The latest release is the last that is no prerelease.
         name: Formulae of the latest releases
-        id: update
-        run: |
-          for formula in Formula/*.rb; do
-            name=$(basename "$formula" .rb)
-            tag=$(gh api "repos/miguelangel-nubla/$name/releases/latest" --jq .tag_name)
-            ./update.sh "$name" "$tag"
-          done
-          changed=$(git diff --name-only -- Formula | sed 's|Formula/||; s|\.rb$||' | tr '\n' ' ')
-          echo "changed=$changed" >>"$GITHUB_OUTPUT"
-          echo "changed: ${changed:-none}"
+        run: ./latest.sh
       -
-        # Those that changed; by hand, every one.
+        # Those that were behind; by hand, every one.
         name: Install and test
-        if: steps.update.outputs.changed != '' || github.event_name == 'workflow_dispatch'
-        env:
-          CHANGED: ${{ steps.update.outputs.changed }}
         run: |
+          formulae=$BEHIND
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-            CHANGED=$(ls Formula | sed 's|\.rb$||' | tr '\n' ' ')
+            formulae=$(ls Formula | sed 's|\.rb$||' | tr '\n' ' ')
           fi
           # The tap is this checkout, with the formulae as they are to be.
           brew tap miguelangel-nubla/tap "$GITHUB_WORKSPACE"
           brew trust miguelangel-nubla/tap 2>/dev/null || true
-          for name in $CHANGED; do
+          for name in $formulae; do
             brew install --build-from-source "miguelangel-nubla/tap/$name"
             brew test "miguelangel-nubla/tap/$name"
             brew audit --strict --formula "miguelangel-nubla/tap/$name"
           done
       -
         name: Keep them
-        if: steps.update.outputs.changed != ''
-        env:
-          CHANGED: ${{ steps.update.outputs.changed }}
         run: |
+          changed=$(git diff --name-only -- Formula | sed 's|Formula/||; s|\.rb$||')
+          [ -n "$changed" ] || exit 0
           message=""
-          for name in $CHANGED; do
+          for name in $changed; do
             version=$(sed -n 's|^  url ".*/tags/v\(.*\)\.tar\.gz"$|\1|p' "Formula/$name.rb")
             message="$message${message:+, }$name $version"
           done
