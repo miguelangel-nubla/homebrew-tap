@@ -40,4 +40,6 @@ It is built from source, with Go. See its [documentation](https://github.com/mig
 
 ## A release
 
-`./update.sh <name> <tag>` makes a formula of a version: its source, and that source's checksum. The release of each project runs it.
+Each formula follows the latest release of its project. Every hour, the [update](.github/workflows/update.yaml) workflow makes a formula that is behind of that release, with `./update.sh <name> <tag>`, which gives it the release's source and its checksum. It installs and tests it on macOS, and only then keeps it.
+
+To have it done at once, run the workflow by hand: *Actions*, *update*, *Run workflow*. By hand it also installs and tests every formula as it is.

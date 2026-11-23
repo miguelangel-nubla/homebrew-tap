@@ -4,8 +4,7 @@
 #
 #	./update.sh ipv6ddns v1.2.3
 #
-# The release of each project does it, with a clone of this repository; by hand, it is for a
-# release that didn't.
+# The update workflow does it, for the latest release of each project.
 set -eu
 cd "$(dirname "$0")"
 name=$1 tag=$2

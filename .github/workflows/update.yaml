@@ -1,0 +1,77 @@
+name: update
+
+# Each formula follows the latest release of its project: every hour, a formula behind it is made
+# of that release, installed and tested on macOS, and only then kept. Nothing but this
+# repository is written to, so the workflow's own token is all it needs.
+#
+# By hand, it also installs and tests the formulae as they are.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+      HOMEBREW_NO_ANALYTICS: 1
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      -
+        # The latest release is the last that is no prerelease.
+        name: Formulae of the latest releases
+        id: update
+        run: |
+          for formula in Formula/*.rb; do
+            name=$(basename "$formula" .rb)
+            tag=$(gh api "repos/miguelangel-nubla/$name/releases/latest" --jq .tag_name)
+            ./update.sh "$name" "$tag"
+          done
+          changed=$(git diff --name-only -- Formula | sed 's|Formula/||; s|\.rb$||' | tr '\n' ' ')
+          echo "changed=$changed" >>"$GITHUB_OUTPUT"
+          echo "changed: ${changed:-none}"
+      -
+        # Those that changed; by hand, every one.
+        name: Install and test
+        if: steps.update.outputs.changed != '' || github.event_name == 'workflow_dispatch'
+        env:
+          CHANGED: ${{ steps.update.outputs.changed }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            CHANGED=$(ls Formula | sed 's|\.rb$||' | tr '\n' ' ')
+          fi
+          # The tap is this checkout, with the formulae as they are to be.
+          brew tap miguelangel-nubla/tap "$GITHUB_WORKSPACE"
+          brew trust miguelangel-nubla/tap 2>/dev/null || true
+          for name in $CHANGED; do
+            brew install --build-from-source "miguelangel-nubla/tap/$name"
+            brew test "miguelangel-nubla/tap/$name"
+            brew audit --strict --formula "miguelangel-nubla/tap/$name"
+          done
+      -
+        name: Keep them
+        if: steps.update.outputs.changed != ''
+        env:
+          CHANGED: ${{ steps.update.outputs.changed }}
+        run: |
+          message=""
+          for name in $CHANGED; do
+            version=$(sed -n 's|^  url ".*/tags/v\(.*\)\.tar\.gz"$|\1|p' "Formula/$name.rb")
+            message="$message${message:+, }$name $version"
+          done
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qam "$message"
+          git push -q
