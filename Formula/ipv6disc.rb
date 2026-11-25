@@ -1,8 +1,8 @@
 class Ipv6disc < Formula
   desc "Finds the hosts on the local network and their addresses, over IPv6 and IPv4"
   homepage "https://github.com/miguelangel-nubla/ipv6disc"
-  url "https://github.com/miguelangel-nubla/ipv6disc/archive/refs/tags/v0.24.3.tar.gz"
-  sha256 "c6f318984af0aa5134e19a77d1b81ac3b75f26789fad8c30b6b084210da5b8f2"
+  url "https://github.com/miguelangel-nubla/ipv6disc/archive/refs/tags/v0.27.0.tar.gz"
+  sha256 "d3b6c9715994176092326542d0b27f5068c7c4551ae132c9b7d796fdb954fd52"
   license "Apache-2.0"
   head "https://github.com/miguelangel-nubla/ipv6disc.git", branch: "main"
 
